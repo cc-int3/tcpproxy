@@ -1,0 +1,20 @@
+{
+  "name": "tcpproxytest",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "node-fetch": "^3.3.2",
+    "simple-oauth2": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.4.5",
+    "@types/simple-oauth2": "^5.0.4",
+    "typescript": "^5.1.6"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
