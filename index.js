@@ -5,22 +5,68 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const https_1 = __importDefault(require("https"));
 const simple_oauth2_1 = require("simple-oauth2");
-const host = 'https://devmtx.myhost.meditech.com:8443';
+const config_1 = require("./config");
 // const api = '/v1/unv-config?skipCache=true';
-const api = '/v2/mis-person/6c4db6ab-d032-5528-8f2f-9385ca1c089f?skipCache=true';
-const scope = 'general unv-config/read user-identity mis-dictionaries mis-dictionaries-ro';
+//const api = '/v2/mis-person/6c4db6ab-d032-5528-8f2f-9385ca1c089f?skipCache=true'
+//const scope = 'general unv-config/read user-identity mis-dictionaries mis-dictionaries-ro';
+const api = '/v2/bundle?skipCache=true';
+const scope = 'general unv-config/read user-identity mis-dictionaries mis-dictionaries-ro performance-testing';
 let accessToken;
-const config = {
-    client: {
-        id: 'testClient',
-        secret: 'testSecret'
+const bundle = {
+    resource: "v1/resource/bundle/_version/2/",
+    type: "batch",
+    strategy: {
+        batch: {
+            executionPlan: "parallel"
+        }
     },
-    auth: {
-        tokenHost: host + '/oauth/token'
-    }
+    limit: 10,
+    entry: []
 };
-async function get(requestNum) {
-    console.log('starting reqquest ' + requestNum);
+async function post(host, requestNum) {
+    const url = new URL(host);
+    console.log(url.hostname);
+    const options = {
+        hostname: url.hostname,
+        port: 443,
+        path: api,
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + accessToken.token.access_token
+        }
+    };
+    console.log('starting request ' + requestNum);
+    const start = new Date().getTime();
+    const req = https_1.default.request(options, (res) => {
+        const { statusCode } = res;
+        const contentType = res.headers['content-type'];
+        const requestId = res.headers['mtrestapi-requestid'];
+        res.on('data', (d) => {
+            // console.log(d);
+        });
+        res.on('end', () => {
+            try {
+                const elapsed = new Date().getTime() - start;
+                console.log('elapsed time for req ' + requestNum + ' was ' + elapsed + ' ' + requestId);
+            }
+            catch (e) {
+                console.error(e.message);
+            }
+        });
+        res.on('error', (e) => {
+            console.error(`Got error: ${e.message}`);
+        });
+    });
+    req.on('error', (e) => {
+        console.error(e);
+    });
+    req.write(JSON.stringify(bundle));
+    req.end();
+}
+;
+async function get(host, requestNum) {
+    console.log('starting request ' + requestNum);
     const start = new Date().getTime();
     https_1.default.get(host + api, {
         rejectUnauthorized: false,
@@ -67,6 +113,14 @@ async function get(requestNum) {
     });
 }
 async function run() {
+    const configTemplate = config_1.remoteConfig;
+    const config = {
+        client: configTemplate.client,
+        auth: {
+            tokenHost: configTemplate.host + configTemplate.auth.tokenEndpoint
+        }
+    };
+    console.log(JSON.stringify(config));
     const client = new simple_oauth2_1.ClientCredentials(config);
     const tokenParams = {
         scope
@@ -77,8 +131,19 @@ async function run() {
     catch (error) {
         console.log('Access Token error', error.message);
     }
-    for (let i = 0; i < 10; ++i) {
-        get(i);
+    //for( let i = 0; i < 10; ++i ){
+    //    get(configTemplate.host,i);
+    //}
+    const entry = {
+        "request": {
+            "method": "GET",
+            "url": "/v1/performance-testing-empty?skipCache=true"
+        }
+    };
+    for (let i = 0; i < 1480; ++i) {
+        bundle.entry.push(entry);
     }
+    console.log('num entries ' + bundle.entry.length);
+    post(configTemplate.host, 1);
 }
 run();
