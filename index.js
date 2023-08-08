@@ -5,11 +5,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const https_1 = __importDefault(require("https"));
 const simple_oauth2_1 = require("simple-oauth2");
-const config_1 = require("./config");
+const remoteConfig_1 = require("./remoteConfig");
 // const api = '/v1/unv-config?skipCache=true';
 //const api = '/v2/mis-person/6c4db6ab-d032-5528-8f2f-9385ca1c089f?skipCache=true'
 //const scope = 'general unv-config/read user-identity mis-dictionaries mis-dictionaries-ro';
-const api = '/v2/bundle?skipCache=true';
+const api = '/v2/bundle?skipCache=true&skipRequestValidation=true';
 const scope = 'general unv-config/read user-identity mis-dictionaries mis-dictionaries-ro performance-testing';
 let accessToken;
 const bundle = {
@@ -20,10 +20,51 @@ const bundle = {
             executionPlan: "parallel"
         }
     },
-    limit: 10,
     entry: []
 };
 async function post(host, requestNum) {
+    const url = new URL(host);
+    console.log(url.hostname);
+    const options = {
+        hostname: url.hostname,
+        port: 443,
+        path: api,
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + accessToken.token.access_token
+        }
+    };
+    console.log('starting request ' + requestNum);
+    const start = new Date().getTime();
+    const req = https_1.default.request(options, (res) => {
+        const { statusCode } = res;
+        const contentType = res.headers['content-type'];
+        const requestId = res.headers['mtrestapi-requestid'];
+        res.on('data', (d) => {
+            //console.log(d.toString('utf8'));
+        });
+        res.on('end', () => {
+            try {
+                const elapsed = new Date().getTime() - start;
+                console.log('elapsed time for req ' + requestNum + ' was ' + elapsed + ' ' + requestId);
+            }
+            catch (e) {
+                console.error(e.message);
+            }
+        });
+        res.on('error', (e) => {
+            console.error(`Got error: ${e.message}`);
+        });
+    });
+    req.on('error', (e) => {
+        console.error(e);
+    });
+    req.write(JSON.stringify(bundle));
+    req.end();
+}
+;
+async function test(host, requestNum) {
     const url = new URL(host);
     console.log(url.hostname);
     const options = {
@@ -113,7 +154,7 @@ async function get(host, requestNum) {
     });
 }
 async function run() {
-    const configTemplate = config_1.remoteConfig;
+    const configTemplate = remoteConfig_1.remoteConfig;
     const config = {
         client: configTemplate.client,
         auth: {
@@ -137,7 +178,11 @@ async function run() {
     const entry = {
         "request": {
             "method": "GET",
-            "url": "/v1/performance-testing-empty?skipCache=true"
+            // url: '/v1/performance-testing-empty?skipCache=true'
+            // url: '/v1/performance-testing-conditionaccess/a562eef0-2c58-5686-b5cf-75888311eaca?skipCache=true'
+            // url: '/v1/performance-testing-conditionptlogging/a562eef0-2c58-5686-b5cf-75888311eaca?skipCache=true'
+            url: '/v1/performance-testing-conditionetag/a562eef0-2c58-5686-b5cf-75888311eaca?skipCache=true'
+            // url: '/v1/performance-testing-condition/a562eef0-2c58-5686-b5cf-75888311eaca?skipCache=true'
         }
     };
     for (let i = 0; i < 1480; ++i) {

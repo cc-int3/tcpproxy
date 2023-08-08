@@ -7,7 +7,7 @@ import { remoteConfig } from './remoteConfig';
 //const api = '/v2/mis-person/6c4db6ab-d032-5528-8f2f-9385ca1c089f?skipCache=true'
 //const scope = 'general unv-config/read user-identity mis-dictionaries mis-dictionaries-ro';
 
-const api = '/v2/bundle?skipCache=true';
+const api = '/v2/bundle?skipCache=true&skipRequestValidation=true';
 const scope = 'general unv-config/read user-identity mis-dictionaries mis-dictionaries-ro performance-testing';
 
 let accessToken: AccessToken;
@@ -20,11 +20,59 @@ const bundle =
     batch: { 
       executionPlan: "parallel" }
     },
-    limit: 10,
   entry : [] as any[]
 }
 
 async function post( host: string, requestNum: number){
+
+  const url = new URL(host);
+  console.log(url.hostname);
+  const options = {
+    hostname: url.hostname,
+    port: 443,
+    path: api,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer '+ accessToken.token.access_token
+    }
+  }
+  console.log('starting request ' + requestNum);
+  const start = new Date().getTime();
+
+  const req = https.request(options, (res) => {
+    
+    const { statusCode } = res;
+    const contentType = res.headers['content-type'];
+    const requestId = res.headers['mtrestapi-requestid'];
+    res.on('data', (d: Buffer) => {
+       //console.log(d.toString('utf8'));
+    });
+
+
+    res.on('end', () => {
+      try {
+        const elapsed = new Date().getTime() - start;
+        console.log( 'elapsed time for req ' + requestNum + ' was ' + elapsed + ' ' + requestId);
+      } catch (e: any) {
+        console.error(e.message);
+      }
+    });
+
+    res.on('error', (e) => {
+      console.error(`Got error: ${e.message}`);
+    });
+  });
+
+  req.on('error', (e) => {
+    console.error(e);
+  });
+
+  req.write(JSON.stringify(bundle));
+  req.end();
+};
+
+async function test( host: string, requestNum: number){
 
   const url = new URL(host);
   console.log(url.hostname);
@@ -156,7 +204,11 @@ async function run() {
     const entry = {
       "request": {
         "method": "GET",
-        "url": "/v1/performance-testing-empty?skipCache=true"
+        // url: '/v1/performance-testing-empty?skipCache=true'
+        // url: '/v1/performance-testing-conditionaccess/a562eef0-2c58-5686-b5cf-75888311eaca?skipCache=true'
+        // url: '/v1/performance-testing-conditionptlogging/a562eef0-2c58-5686-b5cf-75888311eaca?skipCache=true'
+         url: '/v1/performance-testing-conditionetag/a562eef0-2c58-5686-b5cf-75888311eaca?skipCache=true'
+        // url: '/v1/performance-testing-condition/a562eef0-2c58-5686-b5cf-75888311eaca?skipCache=true'
       }
     }
     for( let i =0; i < 1480; ++i){
